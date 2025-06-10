@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Form, Button, Card } from "react-bootstrap";
+import { Form, Button, Card, Alert } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import * as db from "../Database";
-import { v4 as uuidv4 } from "uuid";
+import * as client from "./client";
+import { useDispatch } from "react-redux";
+import { setCurrentUser, type User } from "./reducer";
 
 interface Credentials {
     username: string;
@@ -10,63 +11,52 @@ interface Credentials {
     passwordVerify: string;
 }
 
-export default function SignUp() {
+export default function Signup() {
     const [credentials, setCredentials] = useState<Credentials>({
         username: "",
         password: "",
         passwordVerify: "",
     });
+    const [error, setError] = useState<string | null>(null);
+    const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const handleSignUp = () => {
-        // 1. Make sure username is not empty and passwords match
-        if (
-            !credentials.username ||
-            credentials.password !== credentials.passwordVerify
-        ) {
-            alert("Username is required and passwords must match.");
+    const handleSignUp = async () => {
+        setError(null);
+
+        if (!credentials.username || !credentials.password) {
+            setError("Username and password are required.");
+            return;
+        }
+        if (credentials.password !== credentials.passwordVerify) {
+            setError("Passwords do not match.");
             return;
         }
 
-        // 2. Check if that username already exists
-        const existing = db.users.find((u) => u.username === credentials.username);
-        if (existing) {
-            alert("That username is already taken.");
-            return;
+        try {
+            const newUser = await client.signup({
+                username: credentials.username,
+                password: credentials.password,
+            });
+
+            dispatch(setCurrentUser(newUser as User));
+
+            navigate("/Kambaz/Account/Profile");
+        } catch (err: any) {
+            setError(err.response?.data?.message || "Sign up failed.");
         }
-
-        // 3. Build a new user object that has ALL of the required fields
-        //    (We fill missing fields with empty strings so TypeScript is happy.)
-        const newUser = {
-            _id: uuidv4(),
-            username: credentials.username,
-            password: credentials.password,
-            firstName: "",       // <-- required by your Database.ts
-            lastName: "",        // <-- required
-            email: "",           // <-- required
-            dob: "",             // <-- required
-            role: "STUDENT",     // default to STUDENT
-            loginId: "",         // <-- required
-            section: "",         // <-- required
-            lastActivity: "",    // <-- required
-            totalActivity: "",   // <-- required
-        };
-
-        // 4. Push this newUser into the in‐memory db.users array
-        db.users.push(newUser);
-
-        // 5. Redirect back to SignIn screen
-        navigate("/Kambaz/Account/Signin");
     };
 
     return (
-        <Card
-            id="wd-signup-screen"
-            className="p-4 shadow-sm mx-auto"
-            style={{ maxWidth: 400 }}
-        >
+        <Card id="wd-signup-screen" className="p-4 shadow-sm mx-auto" style={{ maxWidth: 400 }}>
             <Card.Body>
                 <Card.Title>Sign Up</Card.Title>
+
+                {error && (
+                    <Alert id="wd-signup-error" variant="danger">
+                        {error}
+                    </Alert>
+                )}
 
                 <Form>
                     <Form.Group className="mb-3" controlId="wd-signup-username">
@@ -78,7 +68,6 @@ export default function SignUp() {
                             onChange={(e) =>
                                 setCredentials({ ...credentials, username: e.target.value })
                             }
-                            id="wd-signup-username"
                         />
                     </Form.Group>
 
@@ -91,7 +80,6 @@ export default function SignUp() {
                             onChange={(e) =>
                                 setCredentials({ ...credentials, password: e.target.value })
                             }
-                            id="wd-signup-password"
                         />
                     </Form.Group>
 
@@ -102,12 +90,8 @@ export default function SignUp() {
                             placeholder="Re-enter your password"
                             value={credentials.passwordVerify}
                             onChange={(e) =>
-                                setCredentials({
-                                    ...credentials,
-                                    passwordVerify: e.target.value,
-                                })
+                                setCredentials({ ...credentials, passwordVerify: e.target.value })
                             }
-                            id="wd-signup-password-verify"
                         />
                     </Form.Group>
 
@@ -116,6 +100,7 @@ export default function SignUp() {
                         className="w-100"
                         onClick={handleSignUp}
                         id="wd-signup-btn"
+                        type="button"
                     >
                         Sign Up
                     </Button>

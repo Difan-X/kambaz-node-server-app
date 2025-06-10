@@ -5,7 +5,7 @@ import Home from "./Home";
 import Modules from "./Modules";
 import Assignments from "./Assignments";
 import AssignmentEditor from "./Assignments/Editor";
-import PeopleTable from "./People/Table";
+import PeopleTable from "./People/Table.tsx";
 
 interface Course {
     _id: string;

@@ -1,19 +1,21 @@
 import { Table } from "react-bootstrap";
 import { FaUserCircle } from "react-icons/fa";
 import { useParams } from "react-router-dom";
-import * as db from "../../Database";
+import db from "../../../Kambaz/Database/index.js";
+import type { User } from "../../Database/types.ts";
+import type {Enrollment} from "../../../../../Kambaz/Database/types.ts";
 
 export default function PeopleTable() {
     const { cid } = useParams<{ cid: string }>();
-    const { users, enrollments } = db;
-    // Users enrolled in this course per enrollments.json
-    const enrolled = users.filter(usr =>
-        enrollments.some(en => en.user === usr._id && en.course === cid)
-    );
-    // If no enrollments found, fallback to showing all users
-    const displayList = enrolled.length > 0 ? enrolled : users;
 
-    console.log("PeopleTable—cid:", cid, "enrolled:", enrolled);
+    // Now this will work properly
+    const enrolled = db.users.filter((usr: User) =>
+        db.enrollments.some((en: Enrollment) =>
+            en.user === usr._id && en.course === cid
+        )
+    );
+
+    const displayList: User[] = enrolled.length > 0 ? enrolled : db.users;
 
     return (
         <div id="wd-people-table" className="p-3 bg-white shadow-sm">
@@ -29,7 +31,7 @@ export default function PeopleTable() {
                 </tr>
                 </thead>
                 <tbody>
-                {displayList.map(user => (
+                {displayList.map((user: User) => (
                     <tr key={user._id}>
                         <td className="wd-full-name text-nowrap">
                             <FaUserCircle className="me-2 fs-1 text-secondary" />

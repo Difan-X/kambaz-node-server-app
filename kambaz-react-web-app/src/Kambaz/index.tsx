@@ -4,11 +4,10 @@ import Dashboard from "./Dashboard";
 import Courses from "./Courses";
 import Account from "./Account";
 import ProtectedRoute from "./Account/ProtectedRoute";
-import * as db from "./Database";
-import { v4 as uuidv4 } from "uuid";
-import { useState } from "react";
+import Session from "./Account/Session";
+import { useState, useEffect } from "react";
+import * as courseClient from "./Courses/client";
 
-// 1. Define a Course interface that matches `db.courses`
 interface Course {
     _id: string;
     name: string;
@@ -17,13 +16,13 @@ interface Course {
     endDate: string;
     image?: string;
     description: string;
+    department?: string;
+    credits?: number;
+    author?: string;
 }
 
-export function Kambaz() {
-    // 2. State for the full list of courses (initially from Database)
-    const [courses, setCourses] = useState<Course[]>(db.courses);
-
-    // 3. State for the “working” course (used by the Dashboard form for add/edit)
+export default function Kambaz() {
+    const [courses, setCourses] = useState<Course[]>([]);
     const [course, setCourse] = useState<Course>({
         _id: "0",
         name: "New Course",
@@ -32,14 +31,23 @@ export function Kambaz() {
         endDate: "2023-12-15",
         image: "/images/reactjs.jpg",
         description: "New Description",
+        department: "",
+        credits: 3,
+        author: "",
     });
 
-    // 4. Handler to append a brand‐new course
-    const addNewCourse = () => {
-        const newCourse: Course = { ...course, _id: uuidv4() };
-        setCourses([...courses, newCourse]);
+    useEffect(() => {
+        void (async () => {
+            const cs = await courseClient.fetchAllCourses();
+            setCourses(cs);
+        })();
+    }, []);
 
-        // Clear the “working” form fields after adding
+    const addNewCourse = async () => {
+        if (!course.name.trim()) return;
+        await courseClient.createCourse(course);
+        const cs = await courseClient.fetchAllCourses();
+        setCourses(cs);
         setCourse({
             _id: "0",
             name: "",
@@ -48,16 +56,18 @@ export function Kambaz() {
             endDate: "",
             image: "/images/reactjs.jpg",
             description: "",
+            department: "",
+            credits: 3,
+            author: "",
         });
     };
 
-    // 5. Handler to update an existing course (matching by _id)
-    const updateCourse = () => {
-        setCourses(
-            courses.map((c) => (c._id === course._id ? { ...course } : c))
+    const updateCourse = async () => {
+        if (!course._id || course._id === "0") return;
+        const updated = await courseClient.updateCourse(course);
+        setCourses(courses =>
+            courses.map(c => c._id === updated._id ? updated : c)
         );
-
-        // Clear the form fields after updating
         setCourse({
             _id: "0",
             name: "",
@@ -66,66 +76,58 @@ export function Kambaz() {
             endDate: "",
             image: "/images/reactjs.jpg",
             description: "",
+            department: "",
+            credits: 3,
+            author: "",
         });
     };
 
-    // 6. Handler to delete a course by its ID
-    const deleteCourse = (courseId: string) => {
-        setCourses(courses.filter((c) => c._id !== courseId));
+    const deleteCourse = async (courseId: string) => {
+        await courseClient.deleteCourse(courseId);
+        setCourses(courses => courses.filter((course) => course._id !== courseId));
     };
 
-    // 7. Handler to copy a course into the form for editing
     const editCourse = (c: Course) => {
         setCourse({ ...c });
     };
 
     return (
-        <div id="wd-kambaz" className="d-flex">
-            {/* 8. Sidebar navigation (hidden on xs/sm, visible on md+) */}
-            <div className="d-none d-md-block">
-                <KambazNavigation />
+        <Session>
+            <div id="wd-kambaz" className="d-flex">
+                <div className="d-none d-md-block">
+                    <KambazNavigation />
+                </div>
+                <div className="flex-fill wd-main-content-offset p-3">
+                    <Routes>
+                        <Route path="/" element={<Navigate to="Dashboard" replace />} />
+                        <Route path="Account/*" element={<Account />} />
+                        <Route
+                            path="Dashboard"
+                            element={
+                                <ProtectedRoute>
+                                    <Dashboard
+                                        courses={courses}
+                                        course={course}
+                                        setCourse={setCourse}
+                                        addNewCourse={addNewCourse}
+                                        deleteCourse={deleteCourse}
+                                        updateCourse={updateCourse}
+                                        editCourse={editCourse}
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="Courses/:cid/*"
+                            element={
+                                <ProtectedRoute>
+                                    <Courses courses={courses} />
+                                </ProtectedRoute>
+                            }
+                        />
+                    </Routes>
+                </div>
             </div>
-
-            {/* 9. Main content area (offset from sidebar) */}
-            <div className="flex-fill wd-main-content-offset p-3">
-                <Routes>
-                    {/* Default route → Redirect to “Dashboard” */}
-                    <Route path="/" element={<Navigate to="Dashboard" replace />} />
-
-                    {/* Account (Signin/Signup/Profile) lowers to <Account> component */}
-                    <Route path="Account/*" element={<Account />} />
-
-                    {/* Protected “Dashboard”: only accessible if user is signed in */}
-                    <Route
-                        path="Dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard
-                                    courses={courses}
-                                    course={course}
-                                    setCourse={setCourse}
-                                    addNewCourse={addNewCourse}
-                                    deleteCourse={deleteCourse}
-                                    updateCourse={updateCourse}
-                                    editCourse={editCourse}
-                                />
-                            </ProtectedRoute>
-                        }
-                    />
-
-                    {/* Protected “Courses/:cid/*”: only accessible if user is signed in */}
-                    <Route
-                        path="Courses/:cid/*"
-                        element={
-                            <ProtectedRoute>
-                                <Courses courses={courses} />
-                            </ProtectedRoute>
-                        }
-                    />
-
-                    {/* (Optionally add other top‐level Kambaz routes here) */}
-                </Routes>
-            </div>
-        </div>
+        </Session>
     );
 }

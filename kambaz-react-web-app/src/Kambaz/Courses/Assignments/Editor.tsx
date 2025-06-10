@@ -1,12 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    Row,
-    Col,
-    Card,
-    FormControl,
-    Button,
-    Form,
+    Row, Col, Card, FormControl, Button, Form,
 } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../store";
@@ -15,24 +10,21 @@ import {
     addAssignment,
     updateAssignment,
 } from "./assignmentsReducer";
+import * as assignmentsClient from "./client";
 
 export default function AssignmentEditor() {
     const { cid, aid } = useParams<{ cid: string; aid: string }>();
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-    // 1. Grab the assignments array from Redux
     const allAssignments: Assignment[] = useSelector(
         (state: RootState) => state.assignmentsReducer.assignments
     );
 
-    // 2. If this is “edit” mode (aid !== "new"), attempts to find that assignment:
     const existing = allAssignments.find((a) => a._id === aid);
 
-    // 3. Local form state that will hold all assignment fields:
     const [formState, setFormState] = useState<Partial<Assignment>>({
-        // default for “new” mode:
-        _id: "new",         // sentinel to indicate “create new”
+        _id: "new",
         courseId: cid || "",
         title: "",
         module: "",
@@ -42,44 +34,32 @@ export default function AssignmentEditor() {
         description: "",
     });
 
-    // 4. On mount, if `aid !== "new"` and we found an existing assignment, load it into formState.
     useEffect(() => {
         if (aid && aid !== "new") {
             if (!existing) {
-                // If no assignment with that ID was found, just redirect back to the list:
-                navigate(`/Kambaz/Courses/${cid}/Assignments`, { replace: true });
+                assignmentsClient.fetchAssignmentById(aid)
+                    .then(data => setFormState(data))
+                    .catch(() => navigate(`/Kambaz/Courses/${cid}/Assignments`, { replace: true }));
             } else {
-                // Copy the big assignment object into formState
                 setFormState({ ...existing });
             }
         }
-        // If aid === "new", we keep our default formState for a brand‐new record.
     }, [aid, existing, navigate, cid]);
 
-    // 5. If for some reason the formState is still missing, we can fallback to an empty screen:
-    if (!formState) {
-        return null;
-    }
+    if (!formState) return null;
 
-    // 6. Handler for “Save”
-    const onSave = () => {
-        // Gather a full Assignment object. Since formState might be Partial<Assignment>,
-        // we “type‐cast” it to Assignment (we know all fields are present).
-        const assignmentToSave = formState as Assignment;
-
+    const onSave = async () => {
+        let savedAssignment: Assignment;
         if (aid === "new") {
-            // CREATE NEW
-            dispatch(addAssignment(assignmentToSave));
+            savedAssignment = await assignmentsClient.createAssignment(cid!, formState);
+            dispatch(addAssignment(savedAssignment));
         } else {
-            // UPDATE EXISTING
-            dispatch(updateAssignment(assignmentToSave));
+            savedAssignment = await assignmentsClient.updateAssignment(aid!, formState);
+            dispatch(updateAssignment(savedAssignment));
         }
-
-        // Then navigate back to the assignments list:
         navigate(`/Kambaz/Courses/${cid}/Assignments`);
     };
 
-    // 7. Handler for “Cancel” just navigates back without touching Redux
     const onCancel = () => {
         navigate(`/Kambaz/Courses/${cid}/Assignments`);
     };
@@ -91,10 +71,8 @@ export default function AssignmentEditor() {
                 {aid === "new" ? "New Assignment" : formState.title}
             </h4>
             <hr />
-
             <Row>
                 <Col xl={8}>
-                    {/* NAME + DESCRIPTION */}
                     <Form>
                         <Form.Group controlId="wd-name" className="mb-4">
                             <Form.Label>Assignment Name</Form.Label>
@@ -107,7 +85,6 @@ export default function AssignmentEditor() {
                                 }
                             />
                         </Form.Group>
-
                         <Form.Group controlId="wd-description" className="mb-4">
                             <Form.Label>Description</Form.Label>
                             <FormControl
@@ -122,11 +99,9 @@ export default function AssignmentEditor() {
                         </Form.Group>
                     </Form>
                 </Col>
-
                 <Col xl={4}>
                     <Card className="mb-4">
                         <Card.Body>
-                            {/* POINTS */}
                             <Form.Group controlId="wd-points" className="mb-3">
                                 <Form.Label>Points</Form.Label>
                                 <FormControl
@@ -140,8 +115,6 @@ export default function AssignmentEditor() {
                                     }
                                 />
                             </Form.Group>
-
-                            {/* MODULE (for simplicity, free‐text) */}
                             <Form.Group controlId="wd-module" className="mb-3">
                                 <Form.Label>Module</Form.Label>
                                 <FormControl
@@ -153,8 +126,6 @@ export default function AssignmentEditor() {
                                     }
                                 />
                             </Form.Group>
-
-                            {/* DUE DATE */}
                             <Form.Group controlId="wd-due-date" className="mb-3">
                                 <Form.Label>Due</Form.Label>
                                 <FormControl
@@ -163,14 +134,11 @@ export default function AssignmentEditor() {
                                     onChange={(e) =>
                                         setFormState({
                                             ...formState,
-                                            // We convert the date to e.g. "YYYY-MM-DD at 11:59pm"
                                             due: e.target.value + " at 11:59pm",
                                         })
                                     }
                                 />
                             </Form.Group>
-
-                            {/* NOT AVAILABLE UNTIL */}
                             <Form.Group controlId="wd-not-available" className="mb-3">
                                 <Form.Label>Not available until</Form.Label>
                                 <FormControl
@@ -188,7 +156,6 @@ export default function AssignmentEditor() {
                     </Card>
                 </Col>
             </Row>
-
             <div className="d-flex justify-content-end mt-4">
                 <Button
                     variant="light"

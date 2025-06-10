@@ -1,60 +1,50 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-    Row,
-    Col,
-    InputGroup,
-    FormControl,
-    Button,
-    Badge,
-    Dropdown,
-    ListGroup,
-    Modal,
+    Row, Col, InputGroup, FormControl, Button, Badge, Dropdown, ListGroup, Modal,
 } from "react-bootstrap";
 import { FaPlus, FaEllipsisV, FaCheckCircle } from "react-icons/fa";
 import { MdKeyboardArrowDown } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../store";
-import {
-    type Assignment,
-    deleteAssignment,
-} from "./assignmentsReducer";
-import { useState } from "react";
+import { type Assignment, setAssignments, deleteAssignment } from "./assignmentsReducer";
+import * as assignmentsClient from "./client";
+import { useState, useEffect } from "react";
 
 export default function Assignments() {
     const { cid } = useParams<{ cid: string }>();
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-    // 1. Pull all assignments from Redux
     const allAssignments: Assignment[] = useSelector(
         (state: RootState) => state.assignmentsReducer.assignments
     );
-
-    // 2. Filter to only those for this course:
     const assignments: Assignment[] = allAssignments.filter(
         (a) => a.courseId === cid
     );
 
-    // 3. Local state to control the “Are you sure you want to delete?” modal
+    useEffect(() => {
+        if (!cid) return;
+        assignmentsClient.fetchAssignmentsForCourse(cid)
+            .then(data => dispatch(setAssignments(data)));
+    }, [cid, dispatch]);
+
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-    // 4. When the user clicks “Delete” on an assignment, we store its ID and open the modal:
     const confirmDelete = (assignmentId: string) => {
         setToDeleteId(assignmentId);
         setShowDeleteModal(true);
     };
 
-    // 5. If the user clicks “Yes, delete,” we dispatch and close the modal:
-    const doDelete = () => {
+    const doDelete = async () => {
         if (toDeleteId) {
+            await assignmentsClient.deleteAssignment(toDeleteId);
             dispatch(deleteAssignment(toDeleteId));
         }
         setShowDeleteModal(false);
         setToDeleteId(null);
     };
 
-    // 6. If “No,” we simply close the modal without dispatch:
     const cancelDelete = () => {
         setShowDeleteModal(false);
         setToDeleteId(null);
@@ -66,7 +56,6 @@ export default function Assignments() {
                 <Col xs="auto">
                     <h4 className="mb-0 text-danger">Assignments</h4>
                 </Col>
-
                 <Col className="d-flex justify-content-center">
                     <InputGroup className="wd-search" style={{ maxWidth: 300 }}>
                         <InputGroup.Text>
@@ -75,14 +64,10 @@ export default function Assignments() {
                         <FormControl placeholder="Search…" />
                     </InputGroup>
                 </Col>
-
                 <Col xs="auto" className="d-flex justify-content-end">
-                    {/* + Group (not implemented fully here) */}
                     <Button variant="light" className="me-2" disabled>
                         <FaPlus /> Group
                     </Button>
-
-                    {/* + Assignment → navigate to “new” route */}
                     <Button
                         variant="danger"
                         onClick={() => navigate(`/Kambaz/Courses/${cid}/Assignments/new`)}
@@ -91,13 +76,10 @@ export default function Assignments() {
                     </Button>
                 </Col>
             </Row>
-
-            {/* This is just a static “Group” header area; you can style or remove it */}
             <div className="d-flex align-items-center bg-light border px-3 py-2 mb-2">
                 <MdKeyboardArrowDown className="me-2" />
                 <h5 className="mb-0 flex-grow-1">ASSIGNMENTS</h5>
                 <Badge bg="secondary" className="me-2">
-                    {/* Calculate total points % or some summary if you wish */}
                     {assignments.length} Assignment{assignments.length !== 1 && "s"}
                 </Badge>
                 <Button variant="link" className="p-0 me-2 text-dark" disabled>
@@ -113,8 +95,6 @@ export default function Assignments() {
                     </Dropdown.Menu>
                 </Dropdown>
             </div>
-
-            {/* ==== The actual list of assignments ==== */}
             <ListGroup>
                 {assignments.map((a) => (
                     <ListGroup.Item
@@ -122,15 +102,12 @@ export default function Assignments() {
                         className="d-flex align-items-center border-start border-success py-3"
                     >
                         <i className="bi bi-file-earmark-text me-2 text-success" />
-
-                        {/* Assignment title navigates to its editor */}
                         <Link
                             to={`/Kambaz/Courses/${cid}/Assignments/${a._id}`}
                             className="fw-bold me-3 text-decoration-none text-dark"
                         >
                             {a.title}
                         </Link>
-
                         <small className="text-muted me-3">
                             <Link
                                 to={`/Kambaz/Courses/${cid}/Assignments/${a._id}`}
@@ -140,13 +117,9 @@ export default function Assignments() {
                             </Link>{" "}
                             |
                         </small>
-
                         <small className="text-muted me-3">Due {a.due} |</small>
                         <small className="text-muted me-3">{a.pts} pts</small>
-
                         <FaCheckCircle className="text-success me-3" />
-
-                        {/* Dropdown for “Edit / Delete” on the far right */}
                         <Dropdown align="end">
                             <Dropdown.Toggle variant="link" className="p-0 text-dark">
                                 <FaEllipsisV />
@@ -169,7 +142,6 @@ export default function Assignments() {
                     </ListGroup.Item>
                 ))}
             </ListGroup>
-
             {/* ===== Delete Confirmation Modal ===== */}
             <Modal show={showDeleteModal} onHide={cancelDelete} centered>
                 <Modal.Header closeButton>

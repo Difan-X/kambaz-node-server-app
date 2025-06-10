@@ -4,48 +4,55 @@ import { useNavigate } from "react-router-dom";
 import { FormControl, Button, Card } from "react-bootstrap";
 import type { RootState } from "../store";
 import { setCurrentUser, type User } from "./reducer";
+import * as client from "./client";
 
 export default function Profile() {
-    // 1. Local state for the profile form (partial User, because we fill it in on useEffect)
     const [profile, setProfile] = useState<Partial<User>>({});
-
     const dispatch = useDispatch();
     const navigate = useNavigate();
-
-    // 2. Select currentUser from Redux, now strongly typed via RootState
     const currentUser = useSelector((state: RootState) => state.accountReducer.currentUser);
 
-    // 3. On mount (or when currentUser changes), redirect if not signed in; otherwise load profile
     useEffect(() => {
         if (!currentUser) {
-            // not signed in → send to Signin
             navigate("/Kambaz/Account/Signin", { replace: true });
         } else {
-            // signed in → copy user object into local profile state
             setProfile({ ...currentUser });
         }
     }, [currentUser, navigate]);
 
-    // 4. Sign out handler: set Redux to null and navigate to Signin
-    const signout = () => {
+    const updateProfile = async () => {
+        if (!profile._id) return;
+        try {
+            const updated = await client.updateUser(profile);
+            dispatch(setCurrentUser(updated));
+            alert("Profile updated!");
+        } catch (e) {
+            if (e instanceof Error) {
+                alert("Update failed: " + e.message);
+            } else {
+                alert("Update failed: " + String(e));
+            }
+        }
+    };
+
+    const signout = async () => {
+        try {
+            await client.signout();
+        } catch {
+            // signout
+        }
         dispatch(setCurrentUser(null));
         navigate("/Kambaz/Account/Signin", { replace: true });
     };
 
-    // 5. If currentUser is null, we return null here because the useEffect will already have redirected.
-    if (!currentUser) {
-        return null;
-    }
+    if (!currentUser) return null;
 
     return (
         <Card id="wd-profile-screen" className="p-4 shadow-sm">
             <Card.Body>
                 <Card.Title>Your Profile</Card.Title>
-
-                {/* Only render form once we have “profile” data (which is either {} or a real User copy) */}
                 {profile && (
                     <>
-                        {/* Username */}
                         <FormControl
                             type="text"
                             placeholder="Username"
@@ -57,7 +64,6 @@ export default function Profile() {
                             }
                         />
 
-                        {/* Password */}
                         <FormControl
                             type="password"
                             placeholder="Password"
@@ -136,7 +142,6 @@ export default function Profile() {
                             <option value="STUDENT">Student</option>
                         </FormControl>
 
-                        {/* Sign Out */}
                         <Button
                             onClick={signout}
                             variant="outline-secondary"
@@ -146,8 +151,12 @@ export default function Profile() {
                             Sign out
                         </Button>
 
-                        {/* Save Changes (for demonstration; you could dispatch an update action here) */}
-                        <Button variant="primary" className="w-100" id="wd-save-profile-btn">
+                        <Button
+                            variant="primary"
+                            className="w-100"
+                            id="wd-save-profile-btn"
+                            onClick={updateProfile}
+                        >
                             Save Changes
                         </Button>
                     </>

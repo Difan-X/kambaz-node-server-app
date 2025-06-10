@@ -1,29 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { courses as dbCourses, enrollments as dbEnrollments } from "../Database";
+import db from "../Database";
+import type {Course, Enrollment} from "../Database/types";
 import { v4 as uuidv4 } from "uuid";
-
-/**
- * 1) Define a `Course` interface that exactly matches your Database.ts structure.
- *    Make sure these fields match how `db.courses` is shaped in `src/Database.ts`.
- */
-export interface Course {
-    _id: string;
-    name: string;
-    number: string;
-    startDate: string;
-    endDate: string;
-    image?: string;
-    description: string;
-}
-
-/**
- * 2) Define an `Enrollment` interface that matches `db.enrollments`.
- *    Each enrollment object in your Database.ts has at least { user: string, course: string }.
- */
-export interface Enrollment {
-    user: string;   // user._id
-    course: string; // course._id
-}
 
 /**
  * 3) Our slice’s state will hold:
@@ -39,8 +17,8 @@ interface CoursesState {
 }
 
 const initialState: CoursesState = {
-    courses: [...(dbCourses as Course[])],
-    enrollments: [...(dbEnrollments as Enrollment[])],
+    courses: [...(db.courses as Course[])],
+    enrollments: [...(db.enrollments as Enrollment[])],
 };
 
 const coursesSlice = createSlice({
@@ -97,7 +75,10 @@ const coursesSlice = createSlice({
                 (en) => en.user === user && en.course === course
             );
             if (!already) {
-                state.enrollments.push({ user, course });
+                state.enrollments.push({
+                    user, course,
+                    _id: ""
+                });
             }
         },
 
