@@ -17,13 +17,22 @@ import EnrollmentRoutes from "./Kambaz/Enrollments/routes.js";
 
 
 const app = express();
+const allowedOrigins = [
+    'https://guileless-kelpie-4f32b6.netlify.app',
+    'http://localhost:4000'
+];
 
-app.use(
-    cors({
-        credentials: true,
-        origin: process.env.NETLIFY_URL || "http://localhost:5173",
-    })
-);
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true
+}));
 
 const sessionOptions = {
     secret: process.env.SESSION_SECRET || "kambaz",
