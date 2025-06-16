@@ -1,26 +1,46 @@
-import db from "../Database/index.js";
 import { v4 as uuidv4 } from "uuid";
-let users = db.users;
+import model from "./model.js";
+
+/** Create a new user, generating a fresh _id */
 export const createUser = (user) => {
-    const newUser = { ...user, _id: uuidv4() };
-    users.push(newUser);
-    return newUser;
+    // strip any incoming _id and assign a new one
+    const { _id, ...rest } = user;
+    const newUser = { ...rest, _id: uuidv4() };
+    return model.create(newUser);
 };
-export const findAllUsers = () => users;
-export const findUserById = (userId) => users.find((u) => u._id === userId);
-export const findUserByUsername = (username) => users.find((u) => u.username === username);
+
+/** Retrieve all users */
+export const findAllUsers = () => model.find().exec();
+
+/** Retrieve a user by ID */
+export const findUserById = (userId) => model.findById(userId).exec();
+
+/** Retrieve a user by username */
+export const findUserByUsername = (username) =>
+    model.findOne({ username }).exec();
+
+/** Retrieve a user by credentials */
 export const findUserByCredentials = (username, password) =>
-    users.find((u) => u.username === username && u.password === password);
-export const updateUser = (userId, user) => {
-    const idx = users.findIndex((u) => u._id === userId);
-    if (idx >= 0) {
-        users[idx] = { ...users[idx], ...user };
-        return users[idx];
-    }
-    return null;
+    model.findOne({ username, password }).exec();
+
+/** Find users by role */
+export const findUsersByRole = (role) =>
+    model.find({ role }).exec();
+
+/** Find users by partial first or last name (case-insensitive) */
+export const findUsersByPartialName = (partialName) => {
+    const regex = new RegExp(partialName, "i");
+    return model
+        .find({
+            $or: [{ firstName: { $regex: regex } }, { lastName: { $regex: regex } }],
+        })
+        .exec();
 };
-export const deleteUser = (userId) => {
-    const idx = users.findIndex((u) => u._id === userId);
-    if (idx >= 0) users.splice(idx, 1);
-    return users;
-};
+
+/** Update a user by ID */
+export const updateUser = (userId, updates) =>
+    model.updateOne({ _id: userId }, { $set: updates }).exec();
+
+/** Delete a user by ID */
+export const deleteUser = (userId) =>
+    model.deleteOne({ _id: userId }).exec();
