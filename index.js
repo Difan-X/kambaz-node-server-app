@@ -16,6 +16,7 @@ import courseRouter     from "./Kambaz/Courses/routes.js";
 import moduleRouter     from "./Kambaz/Modules/routes.js";
 import assignmentRouter from "./Kambaz/Assignments/routes.js";
 import enrollmentRouter from "./Kambaz/Enrollments/routes.js";
+import MongoStore from "connect-mongo";
 
 const app = express();
 
@@ -47,12 +48,14 @@ const sess = {
     secret: process.env.SESSION_SECRET || "kambaz",
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: MONGO,
+        touchAfter: 24 * 3600 // lazy session update
+    }),
     cookie: {
-        // keep the cookie for 7 days (in ms)
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        // local dev over HTTP:
-        secure: false,
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
 };
 if (process.env.NODE_ENV === "production") {
