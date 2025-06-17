@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import MongoStore from "connect-mongo";
 
 import Hello from "./Hello.js";
 import Lab5 from "./Lab5/index.js";
@@ -16,7 +17,6 @@ import courseRouter     from "./Kambaz/Courses/routes.js";
 import moduleRouter     from "./Kambaz/Modules/routes.js";
 import assignmentRouter from "./Kambaz/Assignments/routes.js";
 import enrollmentRouter from "./Kambaz/Enrollments/routes.js";
-import MongoStore from "connect-mongo";
 
 const app = express();
 
@@ -43,28 +43,31 @@ app.use(
     })
 );
 
-// Session
+// Session with MongoDB Store
 const sess = {
     secret: process.env.SESSION_SECRET || "kambaz",
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: MONGO,
-        touchAfter: 24 * 3600 // lazy session update
+        touchAfter: 24 * 3600, // lazy session update (24 hours)
+        dbName: 'kambaz', // 确保使用正确的数据库名
+        collectionName: 'sessions' // session 集合名
     }),
     cookie: {
+        // keep the cookie for 7 days (in ms)
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        // 根据环境设置 secure 和 sameSite
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
 };
+
+// 生产环境额外设置
 if (process.env.NODE_ENV === "production") {
-    // in real HTTPS production, allow cross-site cookies
-    sess.proxy = true;
-    sess.cookie.secure = true;     // only send over HTTPS
-    sess.cookie.sameSite = "none"; // allow cross-site
-    // sess.cookie.domain = "your-domain.com"; // optionally lock to your domain
+    sess.proxy = true; // 信任反向代理
 }
+
 app.use(session(sess));
 app.use(express.json());
 
