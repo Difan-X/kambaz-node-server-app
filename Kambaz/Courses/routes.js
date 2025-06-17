@@ -1,60 +1,114 @@
-import * as dao from "./dao.js";
-import * as modulesDao from "../Modules/dao.js";
+import express from "express";
+import * as courseDao  from "./dao.js";
+import * as moduleDao  from "../Modules/dao.js";
+import * as enrollmentsDao from "../Enrollments/dao.js";
 
-export default function CourseRoutes(app) {
-    app.get("/api/courses", (req, res) => {
-        const courses = dao.findAllCourses();
-        res.json(courses);
-    });
+const router = express.Router();
 
-    app.post("/api/courses", (req, res) => {
-        const newCourse = dao.createCourse(req.body);
-        const user = req.session.currentUser;
-        if (user) {
-            dao.enrollUserToCourse(user._id, newCourse._id);
+// ─── Create a new course ───────────────────────────────────────────────────────
+router.post("/", async (req, res) => {
+    const { name, description } = req.body;
+    if (!name?.trim()) {
+        return res.status(400).json({ message: "The 'name' field is required." });
+    }
+    try {
+        // strip any incoming _id if present
+        const { _id, ...rest } = req.body;
+        const created = await courseDao.createCourse({ name, description, ...rest });
+        // Enroll the author in the new course
+        const currentUser = req.session.currentUser;
+        if (currentUser) {
+            await enrollmentsDao.enrollUserInCourse(currentUser._id, created._id);
         }
-        res.json(newCourse);
-    });
+        res.status(201).json(created);
+    } catch (err) {
+        console.error("POST /api/courses error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.put("/api/courses/:courseId", (req, res) => {
-        const { courseId } = req.params;
-        const courseUpdates = req.body;
-        const updated = dao.updateCourse(courseId, courseUpdates);
-        if (updated) res.json(updated);
-        else res.status(404).json({ message: "Course not found" });
-    });
+// ─── Get all courses ───────────────────────────────────────────────────────────
+router.get("/", async (req, res) => {
+    try {
+        const all = await courseDao.findAllCourses();
+        res.json(all);
+    } catch (err) {
+        console.error("GET /api/courses error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.delete("/api/courses/:id", (req, res) => {
-        dao.deleteCourse(req.params.id);
+// ─── Get one course ────────────────────────────────────────────────────────────
+router.get("/:courseId", async (req, res) => {
+    const c = await courseDao.findCourseById(req.params.courseId);
+    if (!c) return res.status(404).json({ message: "Course not found" });
+    res.json(c);
+});
+
+// ─── Update a course ──────────────────────────────────────────────────────────
+router.put("/:courseId", async (req, res) => {
+    try {
+        const result = await courseDao.updateCourse(req.params.courseId, req.body);
+        res.json(result);
+    } catch (err) {
+        console.error("PUT /api/courses/:courseId error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// ─── Delete a course ──────────────────────────────────────────────────────────
+router.delete("/:courseId", async (req, res) => {
+    try {
+        await courseDao.deleteCourse(req.params.courseId);
         res.sendStatus(204);
-    });
+    } catch (err) {
+        console.error("DELETE /api/courses/:courseId error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.get("/api/courses/:courseId/modules", (req, res) => {
-        const { courseId } = req.params;
-        const modules = modulesDao.findModulesForCourse(courseId);
-        res.json(modules);
-    });
+// ─── Modules belonging to a course ───────────────────────────────────────────
+// GET  /api/courses/:courseId/modules
+router.get("/:courseId/modules", async (req, res) => {
+    try {
+        const mods = moduleDao.findModulesForCourse(req.params.courseId);
+        res.json(mods);
+    } catch (err) {
+        console.error("GET /api/courses/:cid/modules error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.post("/api/courses/:courseId/modules", (req, res) => {
-        const { courseId } = req.params;
-        const module = {
-            ...req.body,
-            course: courseId,
-        };
-        const newModule = modulesDao.createModule(module);
-        res.json(newModule);
-    });
+// POST /api/courses/:courseId/modules
+router.post("/:courseId/modules", async (req, res) => {
+    const { name, description } = req.body;
+    if (!name?.trim()) {
+        return res.status(400).json({ message: "Module name is required." });
+    }
+    try {
+        const mod = await moduleDao.createModule({
+            course: req.params.courseId,
+            name,
+            lessons: [],
+            ...req.body
+        });
+        res.status(201).json(mod);
+    } catch (err) {
+        console.error("POST /api/courses/:cid/modules error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.put("/api/modules/:moduleId", (req, res) => {
-        const { moduleId } = req.params;
-        const updated = modulesDao.updateModule(moduleId, req.body);
-        if (updated) res.json(updated);
-        else res.status(404).json({ message: "Module not found" });
-    });
+// ─── Retrieve users enrolled in a course ───────────────────────────────────────
+// GET /api/courses/:courseId/users
+router.get("/:courseId/users", async (req, res) => {
+    try {
+        const users = await enrollmentsDao.findEnrollmentsForUser(req.params.courseId);
+        res.json(users);
+    } catch (err) {
+        console.error("GET /api/courses/:cid/users error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
-    app.delete("/api/modules/:moduleId", (req, res) => {
-        modulesDao.deleteModule(req.params.moduleId);
-        res.sendStatus(204);
-    });
-
-}
+export default router;

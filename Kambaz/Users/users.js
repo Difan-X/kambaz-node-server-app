@@ -1,7 +1,7 @@
 import express from "express";
 import * as dao from "./dao.js";
 
-const router = express.Router();
+export const router = express.Router();
 
 // POST   /api/users          → createUser
 router.post("/", (req, res) => {
@@ -52,4 +52,3 @@ router.delete("/:uid", (req, res) => {
     res.sendStatus(204);
 });
 
-export default router;

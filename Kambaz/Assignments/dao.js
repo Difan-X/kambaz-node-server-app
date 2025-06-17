@@ -1,29 +1,26 @@
-import db from "../Database/index.js";
 import { v4 as uuidv4 } from "uuid";
+import AssignmentModel from "./model.js";
 
-export function findAssignmentsForCourse(courseId) {
-    return db.assignments.filter(a => a.courseId === courseId);
-}
+/** List all assignments for a given course */
+export const findAssignmentsForCourse = (courseId) =>
+    AssignmentModel.find({ course: courseId }).exec();
 
-export function findAssignmentById(id) {
-    return db.assignments.find(a => a._id === id);
-}
+/** Get one by its ID */
+export const findAssignmentById = (id) =>
+    AssignmentModel.findById(id).exec();
 
-export function createAssignment(assignment) {
-    const newAssignment = { ...assignment, _id: uuidv4() };
-    db.assignments.push(newAssignment);
-    return newAssignment;
-}
+/** Create a new assignment under a course */
+export const createAssignment = (assignment) => {
+    // strip incoming _id if any, generate our own
+    const { _id, ...rest } = assignment;
+    const newAssignment = { _id: uuidv4(), ...rest };
+    return AssignmentModel.create(newAssignment);
+};
 
-export function updateAssignment(id, updates) {
-    const idx = db.assignments.findIndex(a => a._id === id);
-    if (idx === -1) return null;
-    db.assignments[idx] = { ...db.assignments[idx], ...updates };
-    return db.assignments[idx];
-}
+/** Update an assignment and return the updated document */
+export const updateAssignment = (id, updates) =>
+    AssignmentModel.findByIdAndUpdate(id, { $set: updates }, { new: true }).exec();
 
-export function deleteAssignment(id) {
-    const before = db.assignments.length;
-    db.assignments = db.assignments.filter(a => a._id !== id);
-    return db.assignments.length < before;
-}
+/** Delete an assignment */
+export const deleteAssignment = (id) =>
+    AssignmentModel.deleteOne({ _id: id }).exec();
