@@ -50,9 +50,9 @@ const sess = {
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: MONGO,
-        touchAfter: 24 * 3600, // lazy session update (24 hours)
-        dbName: 'kambaz', // 确保使用正确的数据库名
-        collectionName: 'sessions' // session 集合名
+        touchAfter: 24 * 3600,
+        dbName: 'kambaz',
+        collectionName: 'sessions'
     }),
     cookie: {
         // keep the cookie for 7 days (in ms)
