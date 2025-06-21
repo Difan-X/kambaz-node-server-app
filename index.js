@@ -17,6 +17,7 @@ import courseRouter     from "./Kambaz/Courses/routes.js";
 import moduleRouter     from "./Kambaz/Modules/routes.js";
 import assignmentRouter from "./Kambaz/Assignments/routes.js";
 import enrollmentRouter from "./Kambaz/Enrollments/routes.js";
+import quizzesRouter from "./Kambaz/Quizzes/routes.js";
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use("/api/courses",     courseRouter);
 app.use("/api/modules", moduleRouter);
 app.use("/api", assignmentRouter);
 app.use("/api/enrollments", enrollmentRouter);
+app.use("/api/courses/:courseId/quizzes", quizzesRouter);
 
 // 其他示例路由
 Hello(app);
@@ -85,6 +87,12 @@ PathParameters(app);
 QueryParameters(app);
 WorkingWithObjects(app);
 WorkingWithArrays(app);
+
+
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
 
 // 启动
 const PORT = process.env.PORT || 4000;

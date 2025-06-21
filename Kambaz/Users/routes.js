@@ -69,7 +69,8 @@ router.post("/signup", async (req, res) => {
         return res.status(400).json({ message: "Username taken" });
     }
     const hash = await bcrypt.hash(req.body.password, 10);
-    const newUser = await dao.createUser({ ...req.body, password: hash });
+    const userRole = req.body.role ?? "STUDENT"; // 或 "USER"
+    const newUser = await dao.createUser({ ...req.body, role: userRole, password: hash });
     req.session.currentUser = newUser;
     res.json(newUser);
 });
